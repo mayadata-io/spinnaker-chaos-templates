@@ -1,54 +1,6 @@
 job:
   preconfigured:
     kubernetes:
-      - label: Install-Litmus
-        type: ChaosOperatorSetup
-        description: Install and configure litmus
-        cloudProvider: kubernetes
-        account: spinnaker
-        credentials: spinnaker
-        application: hello
-        waitForCompletion: true
-        parameters:
-          - name: CHAOS_OPERATOR_IMAGE
-            label: Image of ChaosOperator
-            description: ChaosOperator image to install litmus
-            mapping: manifest.spec.template.spec.containers[0].env[0].value
-            defaultValue: "litmuschaos/chaos-operator:latest"
-          - name: CHAOS_RUNNER_IMAGE
-            label: Image of ChaosRunner
-            description: ChaosRunner image to install litmus
-            mapping: manifest.spec.template.spec.containers[0].env[1].value
-            defaultValue: "litmuschaos/chaos-runner:latest"
-          - name: APPLICATION_NAMESPACE
-            label: Namespace of AUT
-            description: Namespace where chaos will occur
-            mapping: manifest.spec.template.spec.containers[0].env[2].value
-            defaultValue: "spinnaker"            
-        manifest:
-          apiVersion: batch/v1
-          kind: Job
-          metadata:
-            name: installation
-          spec:
-            backoffLimit: 0
-            template:
-              spec:
-                restartPolicy: Never
-                containers: 
-                  - name: installation
-                    image: mayadataio/chaos-ci-lib:ci
-                    env:
-                      - name: OPERATOR_IMAGE
-                        value: $(CHAOS_OPERATOR_IMAGE)
-                      - name: RUNNER_IMAGE
-                        value: $(CHAOS_RUNNER_IMAGE)
-                      - name: APP_NS
-                        value: $(APPLICATION_NAMESPACE)                        
-                    command: ["/bin/bash"]
-                    args:
-                    - -c 
-                    - ./install-litmus
       - label: Pod-Delete-Chaos
         type: PodDeleteChaosExperiment
         description: Kill an application pod
@@ -58,20 +10,25 @@ job:
         application: hello
         waitForCompletion: true
         parameters:
+          - name: INSTALL_LITMUS
+            label: install litmus
+            description: Install litmus if it is not already installed
+            mapping: manifest.spec.template.spec.containers[0].env[0].value
+            defaultValue: "false"           
           - name: APPLICATION_NAMESPACE
             label: Namespace of AUT
             description: Namespace where chaos will occur
-            mapping: manifest.spec.template.spec.containers[0].env[0].value
+            mapping: manifest.spec.template.spec.containers[0].env[1].value
             defaultValue: "spinnaker"
           - name: APPLICATION_LABEL
             label: Label of AUT
             description: Label by which app is filtered
-            mapping: manifest.spec.template.spec.containers[0].env[1].value
+            mapping: manifest.spec.template.spec.containers[0].env[2].value
             defaultValue: "name=hello"
           - name: CHAOS_DURATION
             label: Chaos duration
             description: The time duration for chaos insertion (in sec)	
-            mapping: manifest.spec.template.spec.containers[0].env[2].value
+            mapping: manifest.spec.template.spec.containers[0].env[3].value
             defaultValue: "30"                           
         manifest:
           apiVersion: batch/v1
@@ -87,16 +44,20 @@ job:
                   - name: run-pod-delete-chaos
                     image: mayadataio/chaos-ci-lib:ci
                     env:
+                      - name: INSTALL_LITMUS
+                        value: "$(INSTALL_LITMUS)"                    
                       - name: APP_NS
                         value: $(APPLICATION_NAMESPACE)
                       - name: APP_LABEL
                         value: $(APPLICATION_LABEL)
                       - name: TOTAL_CHAOS_DURATION
-                        value: "$(CHAOS_DURATION)"                          
+                        value: "$(CHAOS_DURATION)"
+                      - name: EXPERIMENT_NAME
+                        value: "pod-delete"                                                
                     command: ["/bin/bash"]
                     args:
                     - -c 
-                    - ./pod-delete
+                    - ./experiment_entrypoint.sh
       - label: Container-Kill-Chaos
         type: ContainerKillChaosExperiment
         description: Kill one container in the application pod
@@ -106,35 +67,40 @@ job:
         application: hello
         waitForCompletion: true
         parameters:
+          - name: INSTALL_LITMUS
+            label: install litmus
+            description: Install litmus if it is not already installed
+            mapping: manifest.spec.template.spec.containers[0].env[0].value
+            defaultValue: "false"        
           - name: APPLICATION_NAMESPACE
             label: Namespace of AUT
             description: Namespace where chaos will occur
-            mapping: manifest.spec.template.spec.containers[0].env[0].value
+            mapping: manifest.spec.template.spec.containers[0].env[1].value
             defaultValue: "spinnaker"
           - name: APPLICATION_LABEL
             label: Label of AUT
             description: Label by which app is filtered
-            mapping: manifest.spec.template.spec.containers[0].env[1].value
+            mapping: manifest.spec.template.spec.containers[0].env[2].value
             defaultValue: "name=hello"
           - name: CHAOS_DURATION
             label: Chaos duration
             description: The time duration for chaos insertion (in sec)	
-            mapping: manifest.spec.template.spec.containers[0].env[2].value
+            mapping: manifest.spec.template.spec.containers[0].env[3].value
             defaultValue: "30"
           - name: CHAOS_INTERVAL
             label: Chaos interval
             description: Time interval b/w two successive container kill (in sec)	
-            mapping: manifest.spec.template.spec.containers[0].env[3].value
+            mapping: manifest.spec.template.spec.containers[0].env[4].value
             defaultValue: "10"            
           - name: CONTAINER_RUNTIME
             label: Container runtime
             description: The container runtime interface for the cluster
-            mapping: manifest.spec.template.spec.containers[0].env[4].value
+            mapping: manifest.spec.template.spec.containers[0].env[5].value
             defaultValue: "containerd"
           - name: TARGET_CONTAINER
             label: Target Container
             description: The container to be killed inside the pod
-            mapping: manifest.spec.template.spec.containers[0].env[5].value
+            mapping: manifest.spec.template.spec.containers[0].env[6].value
             defaultValue: "hello"
         manifest:
           apiVersion: batch/v1
@@ -150,6 +116,8 @@ job:
                   - name: run-container-kill-chaos
                     image: mayadataio/chaos-ci-lib:ci
                     env:
+                      - name: INSTALL_LITMUS
+                        value: "$(INSTALL_LITMUS)"                    
                       - name: APP_NS
                         value: $(APPLICATION_NAMESPACE)
                       - name: APP_LABEL
@@ -161,11 +129,13 @@ job:
                       - name: CONTAINER_RUNTIME
                         value: "$(CONTAINER_RUNTIME)"   
                       - name: TARGET_CONTAINER
-                        value: "$(TARGET_CONTAINER)"   
+                        value: "$(TARGET_CONTAINER)"
+                      - name: EXPERIMENT_NAME
+                        value: "container-kill"                        
                     command: ["/bin/bash"]
                     args:
                     - -c 
-                    - ./container-kill
+                    - ./experiment_entrypoint.sh
       - label: Disk-Fill-Chaos
         type: DiskFillChaosExperiment
         description: Fill up Ephemeral Storage of a Pod
@@ -175,30 +145,35 @@ job:
         application: hello
         waitForCompletion: true
         parameters:
+          - name: INSTALL_LITMUS
+            label: install litmus
+            description: Install litmus if it is not already installed
+            mapping: manifest.spec.template.spec.containers[0].env[0].value
+            defaultValue: "false"          
           - name: APPLICATION_NAMESPACE
             label: Namespace of AUT
             description: Namespace where chaos will occur
-            mapping: manifest.spec.template.spec.containers[0].env[0].value
+            mapping: manifest.spec.template.spec.containers[0].env[1].value
             defaultValue: "spinnaker"
           - name: APPLICATION_LABEL
             label: Label of AUT
             description: Label by which app is filtered
-            mapping: manifest.spec.template.spec.containers[0].env[1].value
+            mapping: manifest.spec.template.spec.containers[0].env[2].value
             defaultValue: "name=hello"
           - name: CHAOS_DURATION
             label: Chaos duration
             description: The time duration for chaos insertion (in sec)	
-            mapping: manifest.spec.template.spec.containers[0].env[2].value
+            mapping: manifest.spec.template.spec.containers[0].env[3].value
             defaultValue: "30"            
           - name: TARGET_CONTAINER
             label: Target Container
             description: Name of container which is subjected to disk-fill
-            mapping: manifest.spec.template.spec.containers[0].env[3].value
+            mapping: manifest.spec.template.spec.containers[0].env[4].value
             defaultValue: "hello"
           - name: FILL_PERCENTAGE
             label: Fill percentage
             description: Percentage to fill the Ephemeral storage limit
-            mapping: manifest.spec.template.spec.containers[0].env[4].value
+            mapping: manifest.spec.template.spec.containers[0].env[5].value
             defaultValue: "hello"            
         manifest:
           apiVersion: batch/v1
@@ -214,6 +189,8 @@ job:
                   - name: run-disk-fill-chaos
                     image: mayadataio/chaos-ci-lib:ci
                     env:
+                      - name: INSTALL_LITMUS
+                        value: "$(INSTALL_LITMUS)"                       
                       - name: APP_NS
                         value: $(APPLICATION_NAMESPACE)
                       - name: APP_LABEL
@@ -223,12 +200,13 @@ job:
                       - name: TARGET_CONTAINER
                         value: "$(TARGET_CONTAINER)"
                       - name: FILL_PERCENTAGE
-                        value: "$(FILL_PERCENTAGE)"                         
+                        value: "$(FILL_PERCENTAGE)"
+                      - name: EXPERIMENT_NAME
+                        value: "disk-fill"                                                   
                     command: ["/bin/bash"]
                     args:
                     - -c 
-                    - ./disk-fill
-
+                    - ./experiment_entrypoint.sh
       - label: Pod-CPU-Hog-Chaos
         type: PodCPUHogChaosExperiment
         description: Consume CPU resources on the application container	
@@ -238,30 +216,35 @@ job:
         application: hello
         waitForCompletion: true
         parameters:
+          - name: INSTALL_LITMUS
+            label: install litmus
+            description: Install litmus if it is not already installed
+            mapping: manifest.spec.template.spec.containers[0].env[0].value
+            defaultValue: "false"          
           - name: APPLICATION_NAMESPACE
             label: Namespace of AUT
             description: Namespace where chaos will occur
-            mapping: manifest.spec.template.spec.containers[0].env[0].value
+            mapping: manifest.spec.template.spec.containers[0].env[1].value
             defaultValue: "spinnaker"
           - name: APPLICATION_LABEL
             label: Label of AUT
             description: Label by which app is filtered
-            mapping: manifest.spec.template.spec.containers[0].env[1].value
+            mapping: manifest.spec.template.spec.containers[0].env[2].value
             defaultValue: "name=hello"
           - name: CHAOS_DURATION
             label: Chaos duration
             description: The time duration for chaos insertion (in sec)	
-            mapping: manifest.spec.template.spec.containers[0].env[2].value
+            mapping: manifest.spec.template.spec.containers[0].env[3].value
             defaultValue: "30"
           - name: NUMBER_OF_CPU_CORES
             label: Cores of CPU
             description: Number of the cpu cores subjected to CPU stress	
-            mapping: manifest.spec.template.spec.containers[0].env[3].value
+            mapping: manifest.spec.template.spec.containers[0].env[4].value
             defaultValue: "1"
           - name: TARGET_CONTAINER
             label: Target Container
             description: Name of the container subjected to CPU stress
-            mapping: manifest.spec.template.spec.containers[0].env[4].value
+            mapping: manifest.spec.template.spec.containers[0].env[5].value
             defaultValue: "hello"
         manifest:
           apiVersion: batch/v1
@@ -277,6 +260,8 @@ job:
                   - name: run-pod-cpu-hog-chaos
                     image: mayadataio/chaos-ci-lib:ci
                     env:
+                      - name: INSTALL_LITMUS
+                        value: "$(INSTALL_LITMUS)"                    
                       - name: APP_NS
                         value: $(APPLICATION_NAMESPACE)
                       - name: APP_LABEL
@@ -286,11 +271,13 @@ job:
                       - name: CPU_CORES
                         value: "$(NUMBER_OF_CPU_CORES)"    
                       - name: TARGET_CONTAINER
-                        value: "$(TARGET_CONTAINER)"   
+                        value: "$(TARGET_CONTAINER)"
+                      - name: EXPERIMENT_NAME
+                        value: "pod-cpu-hog"                          
                     command: ["/bin/bash"]
                     args:
                     - -c 
-                    - ./pod-cpu-hog
+                    - ./experiment_entrypoint.sh
       - label: Pod-Memory-Hog-Chaos
         type: PodMemoryHogChaosExperiment
         description: Consume Memory resources on the application container	
@@ -300,30 +287,35 @@ job:
         application: hello
         waitForCompletion: true
         parameters:
+          - name: INSTALL_LITMUS
+            label: install litmus
+            description: Install litmus if it is not already installed
+            mapping: manifest.spec.template.spec.containers[0].env[0].value
+            defaultValue: "false"        
           - name: APPLICATION_NAMESPACE
             label: Namespace of AUT
             description: Namespace where chaos will occur
-            mapping: manifest.spec.template.spec.containers[0].env[0].value
+            mapping: manifest.spec.template.spec.containers[0].env[1].value
             defaultValue: "spinnaker"
           - name: APPLICATION_LABEL
             label: Label of AUT
             description: Label by which app is filtered
-            mapping: manifest.spec.template.spec.containers[0].env[1].value
+            mapping: manifest.spec.template.spec.containers[0].env[2].value
             defaultValue: "name=hello"
           - name: CHAOS_DURATION
             label: Chaos duration
             description: The time duration for chaos insertion (in sec)	
-            mapping: manifest.spec.template.spec.containers[0].env[2].value
+            mapping: manifest.spec.template.spec.containers[0].env[3].value
             defaultValue: "30"
           - name: AMOUNT_OF_MEMORY_CONSUMPTION
             label: Memory consumption
             description: Amount of memory consumption in mb (upto 2500mb)	
-            mapping: manifest.spec.template.spec.containers[0].env[3].value
+            mapping: manifest.spec.template.spec.containers[0].env[4].value
             defaultValue: "500"
           - name: TARGET_CONTAINER
             label: Target Container
             description: Name of the container subjected to CPU stress
-            mapping: manifest.spec.template.spec.containers[0].env[4].value
+            mapping: manifest.spec.template.spec.containers[0].env[5].value
             defaultValue: "hello"
         manifest:
           apiVersion: batch/v1
@@ -339,6 +331,8 @@ job:
                   - name: run-pod-memory-hog-chaos
                     image: mayadataio/chaos-ci-lib:ci
                     env:
+                      - name: INSTALL_LITMUS
+                        value: "$(INSTALL_LITMUS)"                     
                       - name: APP_NS
                         value: $(APPLICATION_NAMESPACE)
                       - name: APP_LABEL
@@ -346,13 +340,15 @@ job:
                       - name: TOTAL_CHAOS_DURATION
                         value: "$(CHAOS_DURATION)"        
                       - name: MEMORY_CONSUMPTION
-                        value: "$(AMOUNT_OF_MEMORY_CONSUMPTION)"    
+                        value: "$(AMOUNT_OF_MEMORY_CONSUMPTION)"
                       - name: TARGET_CONTAINER
-                        value: "$(TARGET_CONTAINER)"   
+                        value: "$(TARGET_CONTAINER)"
+                      - name: EXPERIMENT_NAME
+                        value: "pod-memory-hog"                        
                     command: ["/bin/bash"]
                     args:
                     - -c 
-                    - ./pod-memory-hog
+                    - ./experiment_entrypoint.sh
       - label: Pod-Network-Corruption-Chaos
         type: PodNetworkCorruptionChaosExperiment
         description: Inject Network Packet Corruption Into Application Pod
@@ -362,30 +358,35 @@ job:
         application: hello
         waitForCompletion: true
         parameters:
+          - name: INSTALL_LITMUS
+            label: install litmus
+            description: Install litmus if it is not already installed
+            mapping: manifest.spec.template.spec.containers[0].env[0].value
+            defaultValue: "false"          
           - name: APPLICATION_NAMESPACE
             label: Namespace of AUT
             description: Namespace where chaos will occur
-            mapping: manifest.spec.template.spec.containers[0].env[0].value
+            mapping: manifest.spec.template.spec.containers[0].env[1].value
             defaultValue: "spinnaker"
           - name: APPLICATION_LABEL
             label: Label of AUT
             description: Label by which app is filtered
-            mapping: manifest.spec.template.spec.containers[0].env[1].value
+            mapping: manifest.spec.template.spec.containers[0].env[2].value
             defaultValue: "name=hello"
           - name: CHAOS_DURATION
             label: Chaos duration
             description: The time duration for chaos insertion (in sec)	
-            mapping: manifest.spec.template.spec.containers[0].env[2].value
+            mapping: manifest.spec.template.spec.containers[0].env[3].value
             defaultValue: "30"            
           - name: CONTAINER_RUNTIME
             label: Container runtime
             description: The container runtime interface for the cluster
-            mapping: manifest.spec.template.spec.containers[0].env[3].value
+            mapping: manifest.spec.template.spec.containers[0].env[4].value
             defaultValue: "containerd"
           - name: TARGET_CONTAINER
             label: Target Container
             description: Name of container which is subjected to network corruption.
-            mapping: manifest.spec.template.spec.containers[0].env[4].value
+            mapping: manifest.spec.template.spec.containers[0].env[5].value
             defaultValue: "hello"
         manifest:
           apiVersion: batch/v1
@@ -401,6 +402,8 @@ job:
                   - name: run-pod-network-corruption-chaos
                     image: mayadataio/chaos-ci-lib:ci
                     env:
+                      - name: INSTALL_LITMUS
+                        value: "$(INSTALL_LITMUS)"                     
                       - name: APP_NS
                         value: $(APPLICATION_NAMESPACE)
                       - name: APP_LABEL
@@ -410,11 +413,13 @@ job:
                       - name: CONTAINER_RUNTIME
                         value: "$(CONTAINER_RUNTIME)"   
                       - name: TARGET_CONTAINER
-                        value: "$(TARGET_CONTAINER)"   
+                        value: "$(TARGET_CONTAINER)"
+                      - name: EXPERIMENT_NAME
+                        value: "pod-network-corruption"                      
                     command: ["/bin/bash"]
                     args:
                     - -c 
-                    - ./pod-network-corruption
+                    - ./experiment_entrypoint.sh
       - label: Pod-Network-Dn-Chaos
         type: PodNetworkDuplicationChaosExperiment
         description: Inject Network Packet duplication Into Application Pod
@@ -424,30 +429,35 @@ job:
         application: hello
         waitForCompletion: true
         parameters:
+          - name: INSTALL_LITMUS
+            label: install litmus
+            description: Install litmus if it is not already installed
+            mapping: manifest.spec.template.spec.containers[0].env[0].value
+            defaultValue: "false"        
           - name: APPLICATION_NAMESPACE
             label: Namespace of AUT
             description: Namespace where chaos will occur
-            mapping: manifest.spec.template.spec.containers[0].env[0].value
+            mapping: manifest.spec.template.spec.containers[0].env[1].value
             defaultValue: "spinnaker"
           - name: APPLICATION_LABEL
             label: Label of AUT
             description: Label by which app is filtered
-            mapping: manifest.spec.template.spec.containers[0].env[1].value
+            mapping: manifest.spec.template.spec.containers[0].env[2].value
             defaultValue: "name=hello"
           - name: CHAOS_DURATION
             label: Chaos duration
             description: The time duration for chaos insertion (in sec)	
-            mapping: manifest.spec.template.spec.containers[0].env[2].value
+            mapping: manifest.spec.template.spec.containers[0].env[3].value
             defaultValue: "30"            
           - name: CONTAINER_RUNTIME
             label: Container runtime
             description: The container runtime interface for the cluster
-            mapping: manifest.spec.template.spec.containers[0].env[3].value
+            mapping: manifest.spec.template.spec.containers[0].env[4].value
             defaultValue: "containerd"
           - name: TARGET_CONTAINER
             label: Target Container
             description: Name of container which is subjected to network duplication.
-            mapping: manifest.spec.template.spec.containers[0].env[4].value
+            mapping: manifest.spec.template.spec.containers[0].env[5].value
             defaultValue: "hello"
         manifest:
           apiVersion: batch/v1
@@ -463,6 +473,8 @@ job:
                   - name: run-pod-network-duplication-chaos
                     image: mayadataio/chaos-ci-lib:ci
                     env:
+                      - name: INSTALL_LITMUS
+                        value: "$(INSTALL_LITMUS)"                    
                       - name: APP_NS
                         value: $(APPLICATION_NAMESPACE)
                       - name: APP_LABEL
@@ -472,11 +484,13 @@ job:
                       - name: CONTAINER_RUNTIME
                         value: "$(CONTAINER_RUNTIME)"   
                       - name: TARGET_CONTAINER
-                        value: "$(TARGET_CONTAINER)"   
+                        value: "$(TARGET_CONTAINER)"
+                      - name: EXPERIMENT_NAME
+                        value: "pod-network-duplication"                           
                     command: ["/bin/bash"]
                     args:
                     - -c 
-                    - ./pod-network-duplication
+                    - ./experiment_entrypoint.sh
       - label: Pod-Network-Latency-Chaos
         type: PodNetworkLatencyChaosExperiment
         description: Inject Network Packet Latency Into Application Pod
@@ -486,30 +500,35 @@ job:
         application: hello
         waitForCompletion: true
         parameters:
+          - name: INSTALL_LITMUS
+            label: install litmus
+            description: Install litmus if it is not already installed
+            mapping: manifest.spec.template.spec.containers[0].env[0].value
+            defaultValue: "false"        
           - name: APPLICATION_NAMESPACE
             label: Namespace of AUT
             description: Namespace where chaos will occur
-            mapping: manifest.spec.template.spec.containers[0].env[0].value
+            mapping: manifest.spec.template.spec.containers[0].env[1].value
             defaultValue: "spinnaker"
           - name: APPLICATION_LABEL
             label: Label of AUT
             description: Label by which app is filtered
-            mapping: manifest.spec.template.spec.containers[0].env[1].value
+            mapping: manifest.spec.template.spec.containers[0].env[2].value
             defaultValue: "name=hello"
           - name: CHAOS_DURATION
             label: Chaos duration
             description: The time duration for chaos insertion (in sec)	
-            mapping: manifest.spec.template.spec.containers[0].env[2].value
+            mapping: manifest.spec.template.spec.containers[0].env[3].value
             defaultValue: "30"            
           - name: CONTAINER_RUNTIME
             label: Container runtime
             description: The container runtime interface for the cluster
-            mapping: manifest.spec.template.spec.containers[0].env[3].value
+            mapping: manifest.spec.template.spec.containers[0].env[4].value
             defaultValue: "containerd"
           - name: TARGET_CONTAINER
             label: Target Container
             description: Name of container which is subjected to network latency.
-            mapping: manifest.spec.template.spec.containers[0].env[4].value
+            mapping: manifest.spec.template.spec.containers[0].env[5].value
             defaultValue: "hello"
         manifest:
           apiVersion: batch/v1
@@ -525,6 +544,8 @@ job:
                   - name: run-pod-network-latency-chaos
                     image: mayadataio/chaos-ci-lib:ci
                     env:
+                      - name: INSTALL_LITMUS
+                        value: "$(INSTALL_LITMUS)"                        
                       - name: APP_NS
                         value: $(APPLICATION_NAMESPACE)
                       - name: APP_LABEL
@@ -534,11 +555,13 @@ job:
                       - name: CONTAINER_RUNTIME
                         value: "$(CONTAINER_RUNTIME)"   
                       - name: TARGET_CONTAINER
-                        value: "$(TARGET_CONTAINER)"   
+                        value: "$(TARGET_CONTAINER)"
+                      - name: EXPERIMENT_NAME
+                        value: "pod-network-latency"                          
                     command: ["/bin/bash"]
                     args:
                     - -c 
-                    - ./pod-network-latency
+                    - ./experiment_entrypoint.sh
       - label: Pod-Network-Loss-Chaos
         type: PodNetworkLossChaosExperiment
         description: Inject Network Packet Loss Into Application Pod
@@ -548,30 +571,35 @@ job:
         application: hello
         waitForCompletion: true
         parameters:
+          - name: INSTALL_LITMUS
+            label: install litmus
+            description: Install litmus if it is not already installed
+            mapping: manifest.spec.template.spec.containers[0].env[0].value
+            defaultValue: "false"        
           - name: APPLICATION_NAMESPACE
             label: Namespace of AUT
             description: Namespace where chaos will occur
-            mapping: manifest.spec.template.spec.containers[0].env[0].value
+            mapping: manifest.spec.template.spec.containers[0].env[1].value
             defaultValue: "spinnaker"
           - name: APPLICATION_LABEL
             label: Label of AUT
             description: Label by which app is filtered
-            mapping: manifest.spec.template.spec.containers[0].env[1].value
+            mapping: manifest.spec.template.spec.containers[0].env[2].value
             defaultValue: "name=hello"
           - name: CHAOS_DURATION
             label: Chaos duration
             description: The time duration for chaos insertion (in sec)	
-            mapping: manifest.spec.template.spec.containers[0].env[2].value
+            mapping: manifest.spec.template.spec.containers[0].env[3].value
             defaultValue: "30"            
           - name: CONTAINER_RUNTIME
             label: Container runtime
             description: The container runtime interface for the cluster
-            mapping: manifest.spec.template.spec.containers[0].env[3].value
+            mapping: manifest.spec.template.spec.containers[0].env[4].value
             defaultValue: "containerd"
           - name: TARGET_CONTAINER
             label: Target Container
             description: Name of container which is subjected to network loss.
-            mapping: manifest.spec.template.spec.containers[0].env[4].value
+            mapping: manifest.spec.template.spec.containers[0].env[5].value
             defaultValue: "hello"
         manifest:
           apiVersion: batch/v1
@@ -587,6 +615,8 @@ job:
                   - name: run-pod-network-loss-chaos
                     image: mayadataio/chaos-ci-lib:ci
                     env:
+                      - name: INSTALL_LITMUS
+                        value: "$(INSTALL_LITMUS)"                      
                       - name: APP_NS
                         value: $(APPLICATION_NAMESPACE)
                       - name: APP_LABEL
@@ -596,11 +626,13 @@ job:
                       - name: CONTAINER_RUNTIME
                         value: "$(CONTAINER_RUNTIME)"   
                       - name: TARGET_CONTAINER
-                        value: "$(TARGET_CONTAINER)"   
+                        value: "$(TARGET_CONTAINER)"
+                      - name: EXPERIMENT_NAME
+                        value: "pod-network-loss"                          
                     command: ["/bin/bash"]
                     args:
                     - -c 
-                    - ./pod-network-loss
+                    - ./experiment_entrypoint.sh
       - label: Uninstall-Litmus
         type: ChaosOperatorRemove
         description: Uninstall litmus and its components
@@ -635,4 +667,3 @@ job:
                     args:
                     - -c 
                     - ./uninstall-litmus
-

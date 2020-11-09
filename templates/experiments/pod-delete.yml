@@ -3,7 +3,7 @@ job:
   preconfigured:
     kubernetes:
       - label: Pod-Delete-Chaos
-        type: ChaosExperiment
+        type: PodDeleteChaosExperiment
         description: Kill an application pod
         cloudProvider: kubernetes
         account: spinnaker
@@ -11,20 +11,25 @@ job:
         application: hello
         waitForCompletion: true
         parameters:
+          - name: INSTALL_LITMUS
+            label: install litmus
+            description: Install litmus if it is not already installed
+            mapping: manifest.spec.template.spec.containers[0].env[0].value
+            defaultValue: "false"           
           - name: APPLICATION_NAMESPACE
             label: Namespace of AUT
             description: Namespace where chaos will occur
-            mapping: manifest.spec.template.spec.containers[0].env[0].value
+            mapping: manifest.spec.template.spec.containers[0].env[1].value
             defaultValue: "spinnaker"
           - name: APPLICATION_LABEL
             label: Label of AUT
             description: Label by which app is filtered
-            mapping: manifest.spec.template.spec.containers[0].env[1].value
+            mapping: manifest.spec.template.spec.containers[0].env[2].value
             defaultValue: "name=hello"
           - name: CHAOS_DURATION
             label: Chaos duration
             description: The time duration for chaos insertion (in sec)	
-            mapping: manifest.spec.template.spec.containers[0].env[2].value
+            mapping: manifest.spec.template.spec.containers[0].env[3].value
             defaultValue: "30"                           
         manifest:
           apiVersion: batch/v1
@@ -40,13 +45,17 @@ job:
                   - name: run-pod-delete-chaos
                     image: mayadataio/chaos-ci-lib:ci
                     env:
+                      - name: INSTALL_LITMUS
+                        value: "$(INSTALL_LITMUS)"                    
                       - name: APP_NS
                         value: $(APPLICATION_NAMESPACE)
                       - name: APP_LABEL
                         value: $(APPLICATION_LABEL)
                       - name: TOTAL_CHAOS_DURATION
-                        value: "$(CHAOS_DURATION)"                        
+                        value: "$(CHAOS_DURATION)"
+                      - name: EXPERIMENT_NAME
+                        value: "pod-delete"                                                
                     command: ["/bin/bash"]
                     args:
                     - -c 
-                    - ./pod-delete
+                    - ./experiment_entrypoint.sh

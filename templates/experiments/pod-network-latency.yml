@@ -11,30 +11,35 @@ job:
         application: hello
         waitForCompletion: true
         parameters:
+          - name: INSTALL_LITMUS
+            label: install litmus
+            description: Install litmus if it is not already installed
+            mapping: manifest.spec.template.spec.containers[0].env[0].value
+            defaultValue: "false"        
           - name: APPLICATION_NAMESPACE
             label: Namespace of AUT
             description: Namespace where chaos will occur
-            mapping: manifest.spec.template.spec.containers[0].env[0].value
+            mapping: manifest.spec.template.spec.containers[0].env[1].value
             defaultValue: "spinnaker"
           - name: APPLICATION_LABEL
             label: Label of AUT
             description: Label by which app is filtered
-            mapping: manifest.spec.template.spec.containers[0].env[1].value
+            mapping: manifest.spec.template.spec.containers[0].env[2].value
             defaultValue: "name=hello"
           - name: CHAOS_DURATION
             label: Chaos duration
             description: The time duration for chaos insertion (in sec)	
-            mapping: manifest.spec.template.spec.containers[0].env[2].value
+            mapping: manifest.spec.template.spec.containers[0].env[3].value
             defaultValue: "30"            
           - name: CONTAINER_RUNTIME
             label: Container runtime
             description: The container runtime interface for the cluster
-            mapping: manifest.spec.template.spec.containers[0].env[3].value
+            mapping: manifest.spec.template.spec.containers[0].env[4].value
             defaultValue: "containerd"
           - name: TARGET_CONTAINER
             label: Target Container
             description: Name of container which is subjected to network latency.
-            mapping: manifest.spec.template.spec.containers[0].env[4].value
+            mapping: manifest.spec.template.spec.containers[0].env[5].value
             defaultValue: "hello"
         manifest:
           apiVersion: batch/v1
@@ -50,6 +55,8 @@ job:
                   - name: run-pod-network-latency-chaos
                     image: mayadataio/chaos-ci-lib:ci
                     env:
+                      - name: INSTALL_LITMUS
+                        value: "$(INSTALL_LITMUS)"                        
                       - name: APP_NS
                         value: $(APPLICATION_NAMESPACE)
                       - name: APP_LABEL
@@ -59,8 +66,10 @@ job:
                       - name: CONTAINER_RUNTIME
                         value: "$(CONTAINER_RUNTIME)"   
                       - name: TARGET_CONTAINER
-                        value: "$(TARGET_CONTAINER)"   
+                        value: "$(TARGET_CONTAINER)"
+                      - name: EXPERIMENT_NAME
+                        value: "pod-network-latency"                          
                     command: ["/bin/bash"]
                     args:
                     - -c 
-                    - ./pod-network-latency
+                    - ./experiment_entrypoint.sh
