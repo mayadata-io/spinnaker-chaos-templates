@@ -8,7 +8,7 @@ job:
         cloudProvider: kubernetes
         account: spinnaker
         credentials: spinnaker
-        application: hello
+        application: litmuschaos
         waitForCompletion: true
         parameters:
           - name: INSTALL_LITMUS
@@ -41,11 +41,21 @@ job:
             description: The container runtime interface for the cluster
             mapping: manifest.spec.template.spec.containers[0].env[5].value
             defaultValue: "containerd"
+          - name: SOCKET_PATH
+            label: socket path
+            description: Provide the socket file path, applicable only for containerd runtime
+            mapping: manifest.spec.template.spec.containers[0].env[6].value
+            defaultValue: "'/run/containerd/containerd.sock'"            
           - name: TARGET_CONTAINER
             label: Target Container
             description: The container to be killed inside the pod
-            mapping: manifest.spec.template.spec.containers[0].env[6].value
+            mapping: manifest.spec.template.spec.containers[0].env[7].value
             defaultValue: "hello"
+          - name: UNINSTALL_LITMUS_ON_COMPLETION
+            label: uninstall litmus
+            description: Uninstall litmus if no more test to run
+            mapping: manifest.spec.template.spec.containers[0].env[8].value
+            defaultValue: "false"      
         manifest:
           apiVersion: batch/v1
           kind: Job
@@ -74,6 +84,10 @@ job:
                         value: "$(CONTAINER_RUNTIME)"   
                       - name: TARGET_CONTAINER
                         value: "$(TARGET_CONTAINER)"
+                      - name: SOCKET_PATH
+                        value: "$(SOCKET_PATH)"                        
+                      - name: UNINSTALL_LITMUS
+                        value: "$(UNINSTALL_LITMUS_ON_COMPLETION)"                          
                       - name: EXPERIMENT_NAME
                         value: "container-kill"                        
                     command: ["/bin/bash"]

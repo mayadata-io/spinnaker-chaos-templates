@@ -8,7 +8,7 @@ job:
         cloudProvider: kubernetes
         account: spinnaker
         credentials: spinnaker
-        application: hello
+        application: litmuschaos
         waitForCompletion: true
         parameters:
           - name: INSTALL_LITMUS
@@ -36,11 +36,31 @@ job:
             description: The container runtime interface for the cluster
             mapping: manifest.spec.template.spec.containers[0].env[4].value
             defaultValue: "containerd"
+          - name: SOCKET_PATH
+            label: socket path
+            description: Provide the socket file path, applicable only for containerd runtime
+            mapping: manifest.spec.template.spec.containers[0].env[5].value
+            defaultValue: "'/run/containerd/containerd.sock'"              
           - name: TARGET_CONTAINER
             label: Target Container
             description: Name of container which is subjected to network latency.
-            mapping: manifest.spec.template.spec.containers[0].env[5].value
+            mapping: manifest.spec.template.spec.containers[0].env[6].value
             defaultValue: "hello"
+          - name: NETWORK_INTERFACE
+            label: Network Interface
+            description: Name of ethernet interface considered for shaping traffic.
+            mapping: manifest.spec.template.spec.containers[0].env[7].value
+            defaultValue: "'eth0'" 
+          - name: NETWORK_LATENCY
+            label: Network Latency
+            description: The latency/delay in milliseconds.
+            mapping: manifest.spec.template.spec.containers[0].env[8].value
+            defaultValue: "'60000'"
+          - name: UNINSTALL_LITMUS_ON_COMPLETION
+            label: uninstall litmus
+            description: Uninstall litmus if no more test to run
+            mapping: manifest.spec.template.spec.containers[0].env[9].value
+            defaultValue: "false"              
         manifest:
           apiVersion: batch/v1
           kind: Job
@@ -65,8 +85,16 @@ job:
                         value: "$(CHAOS_DURATION)"   
                       - name: CONTAINER_RUNTIME
                         value: "$(CONTAINER_RUNTIME)"   
+                      - name: SOCKET_PATH
+                        value: "$(SOCKET_PATH)"                        
                       - name: TARGET_CONTAINER
                         value: "$(TARGET_CONTAINER)"
+                      - name: NETWORK_INTERFACE
+                        value: "$(NETWORK_INTERFACE)" 
+                      - name: NETWORK_LATENCY
+                        value: "$(NETWORK_LATENCY)"                                                                             
+                      - name: UNINSTALL_LITMUS
+                        value: "$(UNINSTALL_LITMUS_ON_COMPLETION)"                           
                       - name: EXPERIMENT_NAME
                         value: "pod-network-latency"                          
                     command: ["/bin/bash"]

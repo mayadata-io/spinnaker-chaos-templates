@@ -8,7 +8,7 @@ job:
         cloudProvider: kubernetes
         account: spinnaker
         credentials: spinnaker
-        application: hello
+        application: litmuschaos
         waitForCompletion: true
         parameters:
           - name: INSTALL_LITMUS
@@ -40,7 +40,12 @@ job:
             label: Fill percentage
             description: Percentage to fill the Ephemeral storage limit
             mapping: manifest.spec.template.spec.containers[0].env[5].value
-            defaultValue: "hello"            
+            defaultValue: "hello"
+          - name: UNINSTALL_LITMUS_ON_COMPLETION
+            label: uninstall litmus
+            description: Uninstall litmus if no more test to run
+            mapping: manifest.spec.template.spec.containers[0].env[6].value
+            defaultValue: "false"                     
         manifest:
           apiVersion: batch/v1
           kind: Job
@@ -67,6 +72,8 @@ job:
                         value: "$(TARGET_CONTAINER)"
                       - name: FILL_PERCENTAGE
                         value: "$(FILL_PERCENTAGE)"
+                      - name: UNINSTALL_LITMUS
+                        value: "$(UNINSTALL_LITMUS_ON_COMPLETION)"                           
                       - name: EXPERIMENT_NAME
                         value: "disk-fill"                                                   
                     command: ["/bin/bash"]

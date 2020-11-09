@@ -8,7 +8,7 @@ job:
         cloudProvider: kubernetes
         account: spinnaker
         credentials: spinnaker
-        application: hello
+        application: litmuschaos
         waitForCompletion: true
         parameters:
           - name: INSTALL_LITMUS
@@ -31,16 +31,26 @@ job:
             description: The time duration for chaos insertion (in sec)	
             mapping: manifest.spec.template.spec.containers[0].env[3].value
             defaultValue: "30"
+          - name: CHAOS_KILL_COMMAND
+            label: chaos kill command
+            description: Kills the chaos process inside the target container	
+            mapping: manifest.spec.template.spec.containers[0].env[4].value
+            defaultValue: "\"kill -9 $(ps afx | grep \"[md5sum] /dev/zero\" | awk '{print$1}' | tr '\n' ' ')\""            
           - name: AMOUNT_OF_MEMORY_CONSUMPTION
             label: Memory consumption
             description: Amount of memory consumption in mb (upto 2500mb)	
-            mapping: manifest.spec.template.spec.containers[0].env[4].value
+            mapping: manifest.spec.template.spec.containers[0].env[5].value
             defaultValue: "500"
           - name: TARGET_CONTAINER
             label: Target Container
             description: Name of the container subjected to CPU stress
-            mapping: manifest.spec.template.spec.containers[0].env[5].value
+            mapping: manifest.spec.template.spec.containers[0].env[6].value
             defaultValue: "hello"
+          - name: UNINSTALL_LITMUS_ON_COMPLETION
+            label: uninstall litmus
+            description: Uninstall litmus if no more test to run
+            mapping: manifest.spec.template.spec.containers[0].env[7].value
+            defaultValue: "false"             
         manifest:
           apiVersion: batch/v1
           kind: Job
@@ -62,11 +72,15 @@ job:
                       - name: APP_LABEL
                         value: $(APPLICATION_LABEL)
                       - name: TOTAL_CHAOS_DURATION
-                        value: "$(CHAOS_DURATION)"        
+                        value: "$(CHAOS_DURATION)"
+                      - name: CHAOS_KILL_COMMAND
+                        value: "$(CHAOS_KILL_COMMAND)"                         
                       - name: MEMORY_CONSUMPTION
                         value: "$(AMOUNT_OF_MEMORY_CONSUMPTION)"
                       - name: TARGET_CONTAINER
                         value: "$(TARGET_CONTAINER)"
+                      - name: UNINSTALL_LITMUS
+                        value: "$(UNINSTALL_LITMUS_ON_COMPLETION)"                           
                       - name: EXPERIMENT_NAME
                         value: "pod-memory-hog"                        
                     command: ["/bin/bash"]

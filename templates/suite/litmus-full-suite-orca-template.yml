@@ -7,7 +7,7 @@ job:
         cloudProvider: kubernetes
         account: spinnaker
         credentials: spinnaker
-        application: hello
+        application: litmuschaos
         waitForCompletion: true
         parameters:
           - name: INSTALL_LITMUS
@@ -29,7 +29,22 @@ job:
             label: Chaos duration
             description: The time duration for chaos insertion (in sec)	
             mapping: manifest.spec.template.spec.containers[0].env[3].value
-            defaultValue: "30"                           
+            defaultValue: "30" 
+          - name: CHAOS_INTERVAL
+            label: Chaos interval
+            description: Time interval b/w two successive pod deletes (in sec)	
+            mapping: manifest.spec.template.spec.containers[0].env[4].value
+            defaultValue: "10"   
+          - name: FORCE_DELETE
+            label: force
+            description: To delete pod forcefully	
+            mapping: manifest.spec.template.spec.containers[0].env[5].value
+            defaultValue: "false"   
+          - name: UNINSTALL_LITMUS_ON_COMPLETION
+            label: uninstall litmus
+            description: Uninstall litmus if no more test to run
+            mapping: manifest.spec.template.spec.containers[0].env[6].value
+            defaultValue: "false"                                       
         manifest:
           apiVersion: batch/v1
           kind: Job
@@ -52,6 +67,12 @@ job:
                         value: $(APPLICATION_LABEL)
                       - name: TOTAL_CHAOS_DURATION
                         value: "$(CHAOS_DURATION)"
+                      - name: CHAOS_INTERVAL
+                        value: "$(CHAOS_INTERVAL)"
+                      - name: FORCE
+                        value: "$(FORCE_DELETE)"
+                      - name: UNINSTALL_LITMUS
+                        value: "$(UNINSTALL_LITMUS_ON_COMPLETION)"                           
                       - name: EXPERIMENT_NAME
                         value: "pod-delete"                                                
                     command: ["/bin/bash"]
@@ -64,7 +85,7 @@ job:
         cloudProvider: kubernetes
         account: spinnaker
         credentials: spinnaker
-        application: hello
+        application: litmuschaos
         waitForCompletion: true
         parameters:
           - name: INSTALL_LITMUS
@@ -97,11 +118,21 @@ job:
             description: The container runtime interface for the cluster
             mapping: manifest.spec.template.spec.containers[0].env[5].value
             defaultValue: "containerd"
+          - name: SOCKET_PATH
+            label: socket path
+            description: Provide the socket file path, applicable only for containerd runtime
+            mapping: manifest.spec.template.spec.containers[0].env[6].value
+            defaultValue: "'/run/containerd/containerd.sock'"            
           - name: TARGET_CONTAINER
             label: Target Container
             description: The container to be killed inside the pod
-            mapping: manifest.spec.template.spec.containers[0].env[6].value
+            mapping: manifest.spec.template.spec.containers[0].env[7].value
             defaultValue: "hello"
+          - name: UNINSTALL_LITMUS_ON_COMPLETION
+            label: uninstall litmus
+            description: Uninstall litmus if no more test to run
+            mapping: manifest.spec.template.spec.containers[0].env[8].value
+            defaultValue: "false"      
         manifest:
           apiVersion: batch/v1
           kind: Job
@@ -130,6 +161,10 @@ job:
                         value: "$(CONTAINER_RUNTIME)"   
                       - name: TARGET_CONTAINER
                         value: "$(TARGET_CONTAINER)"
+                      - name: SOCKET_PATH
+                        value: "$(SOCKET_PATH)"                        
+                      - name: UNINSTALL_LITMUS
+                        value: "$(UNINSTALL_LITMUS_ON_COMPLETION)"                          
                       - name: EXPERIMENT_NAME
                         value: "container-kill"                        
                     command: ["/bin/bash"]
@@ -142,7 +177,7 @@ job:
         cloudProvider: kubernetes
         account: spinnaker
         credentials: spinnaker
-        application: hello
+        application: litmuschaos
         waitForCompletion: true
         parameters:
           - name: INSTALL_LITMUS
@@ -174,7 +209,12 @@ job:
             label: Fill percentage
             description: Percentage to fill the Ephemeral storage limit
             mapping: manifest.spec.template.spec.containers[0].env[5].value
-            defaultValue: "hello"            
+            defaultValue: "hello"
+          - name: UNINSTALL_LITMUS_ON_COMPLETION
+            label: uninstall litmus
+            description: Uninstall litmus if no more test to run
+            mapping: manifest.spec.template.spec.containers[0].env[6].value
+            defaultValue: "false"                     
         manifest:
           apiVersion: batch/v1
           kind: Job
@@ -201,6 +241,8 @@ job:
                         value: "$(TARGET_CONTAINER)"
                       - name: FILL_PERCENTAGE
                         value: "$(FILL_PERCENTAGE)"
+                      - name: UNINSTALL_LITMUS
+                        value: "$(UNINSTALL_LITMUS_ON_COMPLETION)"                           
                       - name: EXPERIMENT_NAME
                         value: "disk-fill"                                                   
                     command: ["/bin/bash"]
@@ -213,7 +255,7 @@ job:
         cloudProvider: kubernetes
         account: spinnaker
         credentials: spinnaker
-        application: hello
+        application: litmuschaos
         waitForCompletion: true
         parameters:
           - name: INSTALL_LITMUS
@@ -241,11 +283,26 @@ job:
             description: Number of the cpu cores subjected to CPU stress	
             mapping: manifest.spec.template.spec.containers[0].env[4].value
             defaultValue: "1"
+          - name: CHAOS_INJECT_COMMAND
+            label: chaos inject command
+            description: Command to inject cpu chaos 	
+            mapping: manifest.spec.template.spec.containers[0].env[5].value
+            defaultValue: "'md5sum /dev/zero'"    
+          - name: CHAOS_KILL_COMMAND
+            label: chaos kill command
+            description: Kills the chaos process inside the target container	
+            mapping: manifest.spec.template.spec.containers[0].env[6].value
+            defaultValue: "\"kill -9 $(ps afx | grep \"[md5sum] /dev/zero\" | awk '{print$1}' | tr '\n' ' ')\""
           - name: TARGET_CONTAINER
             label: Target Container
             description: Name of the container subjected to CPU stress
-            mapping: manifest.spec.template.spec.containers[0].env[5].value
+            mapping: manifest.spec.template.spec.containers[0].env[7].value
             defaultValue: "hello"
+          - name: UNINSTALL_LITMUS_ON_COMPLETION
+            label: uninstall litmus
+            description: Uninstall litmus if no more test to run
+            mapping: manifest.spec.template.spec.containers[0].env[8].value
+            defaultValue: "false"             
         manifest:
           apiVersion: batch/v1
           kind: Job
@@ -269,9 +326,15 @@ job:
                       - name: TOTAL_CHAOS_DURATION
                         value: "$(CHAOS_DURATION)"        
                       - name: CPU_CORES
-                        value: "$(NUMBER_OF_CPU_CORES)"    
+                        value: "$(NUMBER_OF_CPU_CORES)"   
+                      - name: CHAOS_INJECT_COMMAND
+                        value: "$(CHAOS_INJECT_COMMAND)"   
+                      - name: CHAOS_KILL_COMMAND
+                        value: "$(CHAOS_KILL_COMMAND)"   
                       - name: TARGET_CONTAINER
                         value: "$(TARGET_CONTAINER)"
+                      - name: UNINSTALL_LITMUS
+                        value: "$(UNINSTALL_LITMUS_ON_COMPLETION)"                           
                       - name: EXPERIMENT_NAME
                         value: "pod-cpu-hog"                          
                     command: ["/bin/bash"]
@@ -284,7 +347,7 @@ job:
         cloudProvider: kubernetes
         account: spinnaker
         credentials: spinnaker
-        application: hello
+        application: litmuschaos
         waitForCompletion: true
         parameters:
           - name: INSTALL_LITMUS
@@ -307,16 +370,26 @@ job:
             description: The time duration for chaos insertion (in sec)	
             mapping: manifest.spec.template.spec.containers[0].env[3].value
             defaultValue: "30"
+          - name: CHAOS_KILL_COMMAND
+            label: chaos kill command
+            description: Kills the chaos process inside the target container	
+            mapping: manifest.spec.template.spec.containers[0].env[4].value
+            defaultValue: "\"kill -9 $(ps afx | grep \"[md5sum] /dev/zero\" | awk '{print$1}' | tr '\n' ' ')\""            
           - name: AMOUNT_OF_MEMORY_CONSUMPTION
             label: Memory consumption
             description: Amount of memory consumption in mb (upto 2500mb)	
-            mapping: manifest.spec.template.spec.containers[0].env[4].value
+            mapping: manifest.spec.template.spec.containers[0].env[5].value
             defaultValue: "500"
           - name: TARGET_CONTAINER
             label: Target Container
             description: Name of the container subjected to CPU stress
-            mapping: manifest.spec.template.spec.containers[0].env[5].value
+            mapping: manifest.spec.template.spec.containers[0].env[6].value
             defaultValue: "hello"
+          - name: UNINSTALL_LITMUS_ON_COMPLETION
+            label: uninstall litmus
+            description: Uninstall litmus if no more test to run
+            mapping: manifest.spec.template.spec.containers[0].env[7].value
+            defaultValue: "false"             
         manifest:
           apiVersion: batch/v1
           kind: Job
@@ -338,11 +411,15 @@ job:
                       - name: APP_LABEL
                         value: $(APPLICATION_LABEL)
                       - name: TOTAL_CHAOS_DURATION
-                        value: "$(CHAOS_DURATION)"        
+                        value: "$(CHAOS_DURATION)"
+                      - name: CHAOS_KILL_COMMAND
+                        value: "$(CHAOS_KILL_COMMAND)"                         
                       - name: MEMORY_CONSUMPTION
                         value: "$(AMOUNT_OF_MEMORY_CONSUMPTION)"
                       - name: TARGET_CONTAINER
                         value: "$(TARGET_CONTAINER)"
+                      - name: UNINSTALL_LITMUS
+                        value: "$(UNINSTALL_LITMUS_ON_COMPLETION)"                           
                       - name: EXPERIMENT_NAME
                         value: "pod-memory-hog"                        
                     command: ["/bin/bash"]
@@ -355,7 +432,7 @@ job:
         cloudProvider: kubernetes
         account: spinnaker
         credentials: spinnaker
-        application: hello
+        application: litmuschaos
         waitForCompletion: true
         parameters:
           - name: INSTALL_LITMUS
@@ -383,11 +460,26 @@ job:
             description: The container runtime interface for the cluster
             mapping: manifest.spec.template.spec.containers[0].env[4].value
             defaultValue: "containerd"
+          - name: SOCKET_PATH
+            label: socket path
+            description: Provide the socket file path, applicable only for containerd runtime
+            mapping: manifest.spec.template.spec.containers[0].env[5].value
+            defaultValue: "'/run/containerd/containerd.sock'"              
           - name: TARGET_CONTAINER
             label: Target Container
             description: Name of container which is subjected to network corruption.
-            mapping: manifest.spec.template.spec.containers[0].env[5].value
+            mapping: manifest.spec.template.spec.containers[0].env[6].value
             defaultValue: "hello"
+          - name: NETWORK_INTERFACE
+            label: Network Interface
+            description: Name of ethernet interface considered for shaping traffic.
+            mapping: manifest.spec.template.spec.containers[0].env[7].value
+            defaultValue: "'eth0'"
+          - name: UNINSTALL_LITMUS_ON_COMPLETION
+            label: uninstall litmus
+            description: Uninstall litmus if no more test to run
+            mapping: manifest.spec.template.spec.containers[0].env[8].value
+            defaultValue: "false"             
         manifest:
           apiVersion: batch/v1
           kind: Job
@@ -412,8 +504,14 @@ job:
                         value: "$(CHAOS_DURATION)"   
                       - name: CONTAINER_RUNTIME
                         value: "$(CONTAINER_RUNTIME)"   
+                      - name: SOCKET_PATH
+                        value: "$(SOCKET_PATH)"
                       - name: TARGET_CONTAINER
                         value: "$(TARGET_CONTAINER)"
+                      - name: NETWORK_INTERFACE
+                        value: "$(NETWORK_INTERFACE)"                        
+                      - name: UNINSTALL_LITMUS
+                        value: "$(UNINSTALL_LITMUS_ON_COMPLETION)"                           
                       - name: EXPERIMENT_NAME
                         value: "pod-network-corruption"                      
                     command: ["/bin/bash"]
@@ -426,7 +524,7 @@ job:
         cloudProvider: kubernetes
         account: spinnaker
         credentials: spinnaker
-        application: hello
+        application: litmuschaos
         waitForCompletion: true
         parameters:
           - name: INSTALL_LITMUS
@@ -454,11 +552,31 @@ job:
             description: The container runtime interface for the cluster
             mapping: manifest.spec.template.spec.containers[0].env[4].value
             defaultValue: "containerd"
+          - name: SOCKET_PATH
+            label: socket path
+            description: Provide the socket file path, applicable only for containerd runtime
+            mapping: manifest.spec.template.spec.containers[0].env[5].value
+            defaultValue: "'/run/containerd/containerd.sock'"              
           - name: TARGET_CONTAINER
             label: Target Container
             description: Name of container which is subjected to network duplication.
-            mapping: manifest.spec.template.spec.containers[0].env[5].value
+            mapping: manifest.spec.template.spec.containers[0].env[6].value
             defaultValue: "hello"
+          - name: NETWORK_INTERFACE
+            label: Network Interface
+            description: Name of ethernet interface considered for shaping traffic.
+            mapping: manifest.spec.template.spec.containers[0].env[7].value
+            defaultValue: "'eth0'"   
+          - name: NETWORK_PACKET_DUPLICATION_PERCENTAGE
+            label: Network packet duplication percentage
+            description: The packet duplication in percentage.
+            mapping: manifest.spec.template.spec.containers[0].env[8].value
+            defaultValue: "'100'"  
+          - name: UNINSTALL_LITMUS_ON_COMPLETION
+            label: uninstall litmus
+            description: Uninstall litmus if no more test to run
+            mapping: manifest.spec.template.spec.containers[0].env[9].value
+            defaultValue: "false"             
         manifest:
           apiVersion: batch/v1
           kind: Job
@@ -483,8 +601,16 @@ job:
                         value: "$(CHAOS_DURATION)"   
                       - name: CONTAINER_RUNTIME
                         value: "$(CONTAINER_RUNTIME)"   
+                      - name: SOCKET_PATH
+                        value: "$(SOCKET_PATH)"                        
                       - name: TARGET_CONTAINER
                         value: "$(TARGET_CONTAINER)"
+                      - name: NETWORK_INTERFACE
+                        value: "$(NETWORK_INTERFACE)"     
+                      - name: NETWORK_PACKET_DUPLICATION_PERCENTAGE
+                        value: "$(NETWORK_PACKET_DUPLICATION_PERCENTAGE)"                                               
+                      - name: UNINSTALL_LITMUS
+                        value: "$(UNINSTALL_LITMUS_ON_COMPLETION)"                           
                       - name: EXPERIMENT_NAME
                         value: "pod-network-duplication"                           
                     command: ["/bin/bash"]
@@ -497,7 +623,7 @@ job:
         cloudProvider: kubernetes
         account: spinnaker
         credentials: spinnaker
-        application: hello
+        application: litmuschaos
         waitForCompletion: true
         parameters:
           - name: INSTALL_LITMUS
@@ -525,11 +651,31 @@ job:
             description: The container runtime interface for the cluster
             mapping: manifest.spec.template.spec.containers[0].env[4].value
             defaultValue: "containerd"
+          - name: SOCKET_PATH
+            label: socket path
+            description: Provide the socket file path, applicable only for containerd runtime
+            mapping: manifest.spec.template.spec.containers[0].env[5].value
+            defaultValue: "'/run/containerd/containerd.sock'"              
           - name: TARGET_CONTAINER
             label: Target Container
             description: Name of container which is subjected to network latency.
-            mapping: manifest.spec.template.spec.containers[0].env[5].value
+            mapping: manifest.spec.template.spec.containers[0].env[6].value
             defaultValue: "hello"
+          - name: NETWORK_INTERFACE
+            label: Network Interface
+            description: Name of ethernet interface considered for shaping traffic.
+            mapping: manifest.spec.template.spec.containers[0].env[7].value
+            defaultValue: "'eth0'" 
+          - name: NETWORK_LATENCY
+            label: Network Latency
+            description: The latency/delay in milliseconds.
+            mapping: manifest.spec.template.spec.containers[0].env[8].value
+            defaultValue: "'60000'"
+          - name: UNINSTALL_LITMUS_ON_COMPLETION
+            label: uninstall litmus
+            description: Uninstall litmus if no more test to run
+            mapping: manifest.spec.template.spec.containers[0].env[9].value
+            defaultValue: "false"              
         manifest:
           apiVersion: batch/v1
           kind: Job
@@ -554,8 +700,16 @@ job:
                         value: "$(CHAOS_DURATION)"   
                       - name: CONTAINER_RUNTIME
                         value: "$(CONTAINER_RUNTIME)"   
+                      - name: SOCKET_PATH
+                        value: "$(SOCKET_PATH)"                        
                       - name: TARGET_CONTAINER
                         value: "$(TARGET_CONTAINER)"
+                      - name: NETWORK_INTERFACE
+                        value: "$(NETWORK_INTERFACE)" 
+                      - name: NETWORK_LATENCY
+                        value: "$(NETWORK_LATENCY)"                                                                             
+                      - name: UNINSTALL_LITMUS
+                        value: "$(UNINSTALL_LITMUS_ON_COMPLETION)"                           
                       - name: EXPERIMENT_NAME
                         value: "pod-network-latency"                          
                     command: ["/bin/bash"]
@@ -568,7 +722,7 @@ job:
         cloudProvider: kubernetes
         account: spinnaker
         credentials: spinnaker
-        application: hello
+        application: litmuschaos
         waitForCompletion: true
         parameters:
           - name: INSTALL_LITMUS
@@ -596,11 +750,31 @@ job:
             description: The container runtime interface for the cluster
             mapping: manifest.spec.template.spec.containers[0].env[4].value
             defaultValue: "containerd"
+          - name: SOCKET_PATH
+            label: socket path
+            description: Provide the socket file path, applicable only for containerd runtime
+            mapping: manifest.spec.template.spec.containers[0].env[5].value
+            defaultValue: "'/run/containerd/containerd.sock'"              
           - name: TARGET_CONTAINER
             label: Target Container
             description: Name of container which is subjected to network loss.
-            mapping: manifest.spec.template.spec.containers[0].env[5].value
+            mapping: manifest.spec.template.spec.containers[0].env[6].value
             defaultValue: "hello"
+          - name: NETWORK_INTERFACE
+            label: Network Interface
+            description: Name of ethernet interface considered for shaping traffic.
+            mapping: manifest.spec.template.spec.containers[0].env[7].value
+            defaultValue: "'eth0'"
+          - name: NETWORK_PACKET_LOSS_PERCENTAGE
+            label: Network packet loss percentage
+            description: The packet loss in percentage.
+            mapping: manifest.spec.template.spec.containers[0].env[8].value
+            defaultValue: "'100'"  
+          - name: UNINSTALL_LITMUS_ON_COMPLETION
+            label: uninstall litmus
+            description: Uninstall litmus if no more test to run
+            mapping: manifest.spec.template.spec.containers[0].env[9].value
+            defaultValue: "false"              
         manifest:
           apiVersion: batch/v1
           kind: Job
@@ -625,45 +799,19 @@ job:
                         value: "$(CHAOS_DURATION)"   
                       - name: CONTAINER_RUNTIME
                         value: "$(CONTAINER_RUNTIME)"   
+                      - name: SOCKET_PATH
+                        value: "$(SOCKET_PATH)"                        
                       - name: TARGET_CONTAINER
                         value: "$(TARGET_CONTAINER)"
+                      - name: NETWORK_INTERFACE
+                        value: "$(NETWORK_INTERFACE)"  
+                      - name: NETWORK_PACKET_LOSS_PERCENTAGE
+                        value: "$(NETWORK_PACKET_LOSS_PERCENTAGE)"                                                   
+                      - name: UNINSTALL_LITMUS
+                        value: "$(UNINSTALL_LITMUS_ON_COMPLETION)"                           
                       - name: EXPERIMENT_NAME
                         value: "pod-network-loss"                          
                     command: ["/bin/bash"]
                     args:
                     - -c 
                     - ./experiment_entrypoint.sh
-      - label: Uninstall-Litmus
-        type: ChaosOperatorRemove
-        description: Uninstall litmus and its components
-        cloudProvider: kubernetes
-        account: spinnaker
-        credentials: spinnaker
-        application: hello
-        waitForCompletion: true
-        parameters:
-          - name: APPLICATION_NAMESPACE
-            label: Namespace of AUT
-            description: Namespace where chaos will occur
-            mapping: manifest.spec.template.spec.containers[0].env[0].value
-            defaultValue: "spinnaker"
-        manifest:
-          apiVersion: batch/v1
-          kind: Job
-          metadata:
-            name: uninstallation
-          spec:
-            backoffLimit: 0
-            template:
-              spec:
-                restartPolicy: Never
-                containers: 
-                  - name: uninstallation
-                    image: mayadataio/chaos-ci-lib:ci
-                    env:
-                      - name: APP_NS
-                        value: $(APPLICATION_NAMESPACE)
-                    command: ["/bin/bash"]
-                    args:
-                    - -c 
-                    - ./uninstall-litmus
