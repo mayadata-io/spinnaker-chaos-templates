@@ -1,0 +1,103 @@
+---
+job:
+  preconfigured:
+    kubernetes:
+      - label: Pod-Network-Dn-Chaos
+        type: PodNetworkDuplicationChaosExperiment
+        description: Inject Network Packet duplication Into Application Pod
+        cloudProvider: kubernetes
+        account: spinnaker
+        credentials: spinnaker
+        application: litmuschaos
+        waitForCompletion: true
+        parameters:
+          - name: INSTALL_LITMUS
+            label: install litmus
+            description: Install litmus if it is not already installed
+            mapping: manifest.spec.template.spec.containers[0].env[0].value
+            defaultValue: "false"        
+          - name: APPLICATION_NAMESPACE
+            label: Namespace of AUT
+            description: Namespace where chaos will occur
+            mapping: manifest.spec.template.spec.containers[0].env[1].value
+            defaultValue: "spinnaker"
+          - name: APPLICATION_LABEL
+            label: Label of AUT
+            description: Label by which app is filtered
+            mapping: manifest.spec.template.spec.containers[0].env[2].value
+            defaultValue: "name=hello"
+          - name: CHAOS_DURATION
+            label: Chaos duration
+            description: The time duration for chaos insertion (in sec)	
+            mapping: manifest.spec.template.spec.containers[0].env[3].value
+            defaultValue: "30"            
+          - name: CONTAINER_RUNTIME
+            label: Container runtime
+            description: The container runtime interface for the cluster
+            mapping: manifest.spec.template.spec.containers[0].env[4].value
+            defaultValue: "containerd"
+          - name: SOCKET_PATH
+            label: socket path
+            description: Provide the socket file path, applicable only for containerd runtime
+            mapping: manifest.spec.template.spec.containers[0].env[5].value
+            defaultValue: "'/run/containerd/containerd.sock'"              
+          - name: TARGET_CONTAINER
+            label: Target Container
+            description: Name of container which is subjected to network duplication.
+            mapping: manifest.spec.template.spec.containers[0].env[6].value
+            defaultValue: "hello"
+          - name: NETWORK_INTERFACE
+            label: Network Interface
+            description: Name of ethernet interface considered for shaping traffic.
+            mapping: manifest.spec.template.spec.containers[0].env[7].value
+            defaultValue: "'eth0'"   
+          - name: NETWORK_PACKET_DUPLICATION_PERCENTAGE
+            label: Network packet duplication percentage
+            description: The packet duplication in percentage.
+            mapping: manifest.spec.template.spec.containers[0].env[8].value
+            defaultValue: "'100'"  
+          - name: UNINSTALL_LITMUS_ON_COMPLETION
+            label: uninstall litmus
+            description: Uninstall litmus if no more test to run
+            mapping: manifest.spec.template.spec.containers[0].env[9].value
+            defaultValue: "false"             
+        manifest:
+          apiVersion: batch/v1
+          kind: Job
+          metadata:
+              name: run-pod-network-duplication-chaos
+          spec:
+            backoffLimit: 0
+            template:
+              spec:
+                restartPolicy: Never
+                containers: 
+                  - name: run-pod-network-duplication-chaos
+                    image: mayadataio/chaos-ci-lib:ci
+                    env:
+                      - name: INSTALL_LITMUS
+                        value: "$(INSTALL_LITMUS)"                    
+                      - name: APP_NS
+                        value: $(APPLICATION_NAMESPACE)
+                      - name: APP_LABEL
+                        value: $(APPLICATION_LABEL)
+                      - name: TOTAL_CHAOS_DURATION
+                        value: "$(CHAOS_DURATION)"   
+                      - name: CONTAINER_RUNTIME
+                        value: "$(CONTAINER_RUNTIME)"   
+                      - name: SOCKET_PATH
+                        value: "$(SOCKET_PATH)"                        
+                      - name: TARGET_CONTAINER
+                        value: "$(TARGET_CONTAINER)"
+                      - name: NETWORK_INTERFACE
+                        value: "$(NETWORK_INTERFACE)"     
+                      - name: NETWORK_PACKET_DUPLICATION_PERCENTAGE
+                        value: "$(NETWORK_PACKET_DUPLICATION_PERCENTAGE)"                                               
+                      - name: UNINSTALL_LITMUS
+                        value: "$(UNINSTALL_LITMUS_ON_COMPLETION)"                           
+                      - name: EXPERIMENT_NAME
+                        value: "pod-network-duplication"                           
+                    command: ["/bin/bash"]
+                    args:
+                    - -c 
+                    - ./experiment_entrypoint.sh

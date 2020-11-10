@@ -26,29 +26,49 @@ job:
   preconfigured:
     kubernetes:
       - label: Pod-Delete-Chaos
-        type: ChaosExperiment
+        type: PodDeleteChaosExperiment
         description: Kill an application pod
         cloudProvider: kubernetes
         account: spinnaker
         credentials: spinnaker
-        application: hello
+        application: litmuschaos
         waitForCompletion: true
         parameters:
+          - name: INSTALL_LITMUS
+            label: install litmus
+            description: Install litmus if it is not already installed
+            mapping: manifest.spec.template.spec.containers[0].env[0].value
+            defaultValue: "false"           
           - name: APPLICATION_NAMESPACE
             label: Namespace of AUT
             description: Namespace where chaos will occur
-            mapping: manifest.spec.template.spec.containers[0].env[0].value
+            mapping: manifest.spec.template.spec.containers[0].env[1].value
             defaultValue: "spinnaker"
           - name: APPLICATION_LABEL
             label: Label of AUT
             description: Label by which app is filtered
-            mapping: manifest.spec.template.spec.containers[0].env[1].value
+            mapping: manifest.spec.template.spec.containers[0].env[2].value
             defaultValue: "name=hello"
           - name: CHAOS_DURATION
             label: Chaos duration
-            description: The time duration for chaos insertion (in sec)
-            mapping: manifest.spec.template.spec.containers[0].env[2].value
-            defaultValue: "30"
+            description: The time duration for chaos insertion (in sec)	
+            mapping: manifest.spec.template.spec.containers[0].env[3].value
+            defaultValue: "30" 
+          - name: CHAOS_INTERVAL
+            label: Chaos interval
+            description: Time interval b/w two successive pod deletes (in sec)	
+            mapping: manifest.spec.template.spec.containers[0].env[4].value
+            defaultValue: "10"   
+          - name: FORCE_DELETE
+            label: force
+            description: To delete pod forcefully	
+            mapping: manifest.spec.template.spec.containers[0].env[5].value
+            defaultValue: "false"   
+          - name: UNINSTALL_LITMUS_ON_COMPLETION
+            label: uninstall litmus
+            description: Uninstall litmus if no more test to run
+            mapping: manifest.spec.template.spec.containers[0].env[6].value
+            defaultValue: "false"                                       
         manifest:
           apiVersion: batch/v1
           kind: Job
@@ -59,20 +79,30 @@ job:
             template:
               spec:
                 restartPolicy: Never
-                containers:
+                containers: 
                   - name: run-pod-delete-chaos
                     image: mayadataio/chaos-ci-lib:ci
                     env:
+                      - name: INSTALL_LITMUS
+                        value: "$(INSTALL_LITMUS)"                    
                       - name: APP_NS
                         value: $(APPLICATION_NAMESPACE)
                       - name: APP_LABEL
                         value: $(APPLICATION_LABEL)
                       - name: TOTAL_CHAOS_DURATION
                         value: "$(CHAOS_DURATION)"
+                      - name: CHAOS_INTERVAL
+                        value: "$(CHAOS_INTERVAL)"
+                      - name: FORCE
+                        value: "$(FORCE_DELETE)"
+                      - name: UNINSTALL_LITMUS
+                        value: "$(UNINSTALL_LITMUS_ON_COMPLETION)"                           
+                      - name: EXPERIMENT_NAME
+                        value: "pod-delete"                                                
                     command: ["/bin/bash"]
                     args:
-                    - -c
-                    - ./pod-delete
+                    - -c 
+                    - ./experiment_entrypoint.sh
 ```
 
 ## Updating the Custom Job Template

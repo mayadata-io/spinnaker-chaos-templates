@@ -2,9 +2,9 @@
 job:
   preconfigured:
     kubernetes:
-      - label: Pod-Delete-Chaos
-        type: PodDeleteChaosExperiment
-        description: Kill an application pod
+      - label: Container-Kill-Chaos
+        type: ContainerKillChaosExperiment
+        description: Kill one container in the application pod
         cloudProvider: kubernetes
         account: spinnaker
         credentials: spinnaker
@@ -15,7 +15,7 @@ job:
             label: install litmus
             description: Install litmus if it is not already installed
             mapping: manifest.spec.template.spec.containers[0].env[0].value
-            defaultValue: "false"           
+            defaultValue: "false"        
           - name: APPLICATION_NAMESPACE
             label: Namespace of AUT
             description: Namespace where chaos will occur
@@ -30,34 +30,44 @@ job:
             label: Chaos duration
             description: The time duration for chaos insertion (in sec)	
             mapping: manifest.spec.template.spec.containers[0].env[3].value
-            defaultValue: "30" 
+            defaultValue: "30"
           - name: CHAOS_INTERVAL
             label: Chaos interval
-            description: Time interval b/w two successive pod deletes (in sec)	
+            description: Time interval b/w two successive container kill (in sec)	
             mapping: manifest.spec.template.spec.containers[0].env[4].value
-            defaultValue: "10"   
-          - name: FORCE_DELETE
-            label: force
-            description: To delete pod forcefully	
+            defaultValue: "10"            
+          - name: CONTAINER_RUNTIME
+            label: Container runtime
+            description: The container runtime interface for the cluster
             mapping: manifest.spec.template.spec.containers[0].env[5].value
-            defaultValue: "false"   
+            defaultValue: "containerd"
+          - name: SOCKET_PATH
+            label: socket path
+            description: Provide the socket file path, applicable only for containerd runtime
+            mapping: manifest.spec.template.spec.containers[0].env[6].value
+            defaultValue: "'/run/containerd/containerd.sock'"            
+          - name: TARGET_CONTAINER
+            label: Target Container
+            description: The container to be killed inside the pod
+            mapping: manifest.spec.template.spec.containers[0].env[7].value
+            defaultValue: "hello"
           - name: UNINSTALL_LITMUS_ON_COMPLETION
             label: uninstall litmus
             description: Uninstall litmus if no more test to run
-            mapping: manifest.spec.template.spec.containers[0].env[6].value
-            defaultValue: "false"                                       
+            mapping: manifest.spec.template.spec.containers[0].env[8].value
+            defaultValue: "false"      
         manifest:
           apiVersion: batch/v1
           kind: Job
           metadata:
-              name: run-pod-delete-chaos
+              name: run-container-kill-chaos
           spec:
             backoffLimit: 0
             template:
               spec:
                 restartPolicy: Never
                 containers: 
-                  - name: run-pod-delete-chaos
+                  - name: run-container-kill-chaos
                     image: mayadataio/chaos-ci-lib:ci
                     env:
                       - name: INSTALL_LITMUS
@@ -67,15 +77,19 @@ job:
                       - name: APP_LABEL
                         value: $(APPLICATION_LABEL)
                       - name: TOTAL_CHAOS_DURATION
-                        value: "$(CHAOS_DURATION)"
+                        value: "$(CHAOS_DURATION)"        
                       - name: CHAOS_INTERVAL
-                        value: "$(CHAOS_INTERVAL)"
-                      - name: FORCE
-                        value: "$(FORCE_DELETE)"
+                        value: "$(CHAOS_INTERVAL)"    
+                      - name: CONTAINER_RUNTIME
+                        value: "$(CONTAINER_RUNTIME)"   
+                      - name: TARGET_CONTAINER
+                        value: "$(TARGET_CONTAINER)"
+                      - name: SOCKET_PATH
+                        value: "$(SOCKET_PATH)"                        
                       - name: UNINSTALL_LITMUS
-                        value: "$(UNINSTALL_LITMUS_ON_COMPLETION)"                           
+                        value: "$(UNINSTALL_LITMUS_ON_COMPLETION)"                          
                       - name: EXPERIMENT_NAME
-                        value: "pod-delete"                                                
+                        value: "container-kill"                        
                     command: ["/bin/bash"]
                     args:
                     - -c 
